@@ -2,152 +2,152 @@
 import asyncio,motor,motor_pair,distance_sensor,color_matrix,force_sensor,color,orientation,math,random
 from hub import button,sound,light_matrix,motion_sensor,light,port
 async def dummyTask():
-	timer.reset_timer()
-	while True:await asyncio.sleep_ms(9999999)
+    timer.reset_timer()
+    while True:await asyncio.sleep_ms(9999999)
 class timerClass:
-	def __init__(self):self.initial=None
-	def get_time_ms(self,notUsed=None):return asyncio.ticks()-self.initial
-	def reset_timer(self):self.initial=asyncio.ticks()
+    def __init__(self):self.initial=None
+    def get_time_ms(self,notUsed=None):return asyncio.ticks()-self.initial
+    def reset_timer(self):self.initial=asyncio.ticks()
 timer=timerClass()
 class task_manager:
-	def __init__(self):self.tasks={};self.main_tasks={};self.add_main_task('system_init',dummyTask())
-	def add_main_task(self,task_id,coroutine):
-		if task_id in self.main_tasks:raise ValueError('that main task already exists')
-		task=asyncio.create_task(coroutine);self.main_tasks[task_id]=task
-	def add_task(self,task_id,coroutine):
-		if task_id in self.main_tasks:raise ValueError('cannot add task under id that already exists in main tasks')
-		if not task_id in self.tasks:task=asyncio.create_task(coroutine);self.tasks[task_id]=task
-	def add_or_replace_task(self,task_id,coroutine):
-		if task_id in self.main_tasks:raise ValueError('cannot add task under id that already exists in main tasks')
-		if task_id in self.tasks:self.remove_task(task_id)
-		task=asyncio.create_task(coroutine);self.tasks[task_id]=task
-	def cancel_task(self,task_id):
-		if task_id in self.main_tasks:raise ValueError('cannot remove main task')
-		if task_id in self.tasks:task=self.tasks[task_id];task.cancel();del self.tasks[task_id]
-	def cancel_all_except(self,task_ids_to_keep=None):
-		if task_ids_to_keep is None:task_ids_to_keep=[]
-		elif isinstance(task_ids_to_keep,str):task_ids_to_keep=[task_ids_to_keep]
-		tasks_to_cancel=[task_id for task_id in self.tasks if task_id not in task_ids_to_keep]
-		for task_id in tasks_to_cancel:self.cancel_task(task_id)
-	def remove_task(self,task_id):
-		if task_id in self.main_tasks:raise ValueError('cannot remove main task')
-		if task_id in self.tasks:del self.tasks[task_id]
-	async def wait_for(self,task_ids):
-		if isinstance(task_ids,str):task_ids=[task_ids]
-		tasks_to_wait=[self.tasks[task_id]for task_id in task_ids if task_id in self.tasks]
-		if tasks_to_wait:await asyncio.gather(*tasks_to_wait)
-	async def run_all_tasks(self):all_tasks=list(self.tasks.values())+list(self.main_tasks.values());await asyncio.gather(*all_tasks)
+    def __init__(self):self.tasks={};self.main_tasks={};self.add_main_task('system_init',dummyTask())
+    def add_main_task(self,task_id,coroutine):
+        if task_id in self.main_tasks:raise ValueError('that main task already exists')
+        task=asyncio.create_task(coroutine);self.main_tasks[task_id]=task
+    def add_task(self,task_id,coroutine):
+        if task_id in self.main_tasks:raise ValueError('cannot add task under id that already exists in main tasks')
+        if not task_id in self.tasks:task=asyncio.create_task(coroutine);self.tasks[task_id]=task
+    def add_or_replace_task(self,task_id,coroutine):
+        if task_id in self.main_tasks:raise ValueError('cannot add task under id that already exists in main tasks')
+        if task_id in self.tasks:self.remove_task(task_id)
+        task=asyncio.create_task(coroutine);self.tasks[task_id]=task
+    def cancel_task(self,task_id):
+        if task_id in self.main_tasks:raise ValueError('cannot remove main task')
+        if task_id in self.tasks:task=self.tasks[task_id];task.cancel();del self.tasks[task_id]
+    def cancel_all_except(self,task_ids_to_keep=None):
+        if task_ids_to_keep is None:task_ids_to_keep=[]
+        elif isinstance(task_ids_to_keep,str):task_ids_to_keep=[task_ids_to_keep]
+        tasks_to_cancel=[task_id for task_id in self.tasks if task_id not in task_ids_to_keep]
+        for task_id in tasks_to_cancel:self.cancel_task(task_id)
+    def remove_task(self,task_id):
+        if task_id in self.main_tasks:raise ValueError('cannot remove main task')
+        if task_id in self.tasks:del self.tasks[task_id]
+    async def wait_for(self,task_ids):
+        if isinstance(task_ids,str):task_ids=[task_ids]
+        tasks_to_wait=[self.tasks[task_id]for task_id in task_ids if task_id in self.tasks]
+        if tasks_to_wait:await asyncio.gather(*tasks_to_wait)
+    async def run_all_tasks(self):all_tasks=list(self.tasks.values())+list(self.main_tasks.values());await asyncio.gather(*all_tasks)
 loop=task_manager()
 def midi_to_hz(midi_note):frequency=440*2**((midi_note-69)/12);return round(frequency)
 class sound_class:
-	async def beep(self,frequency=440,duration=500,volume=100,*,attack=0,decay=0,sustain=100,release=0,transition=10,waveform=sound.WAVEFORM_SINE,channel=sound.DEFAULT):sound.beep(frequency,duration,volume,attack=attack,decay=decay,sustain=sustain,release=release,transition=transition,waveform=waveform,channel=channel);await asyncio.sleep_ms(duration)
-	async def note(self,note=60,duration=500,volume=100,*,attack=0,decay=0,sustain=100,release=0,transition=10,waveform=sound.WAVEFORM_SINE,channel=sound.DEFAULT):sound.beep(midi_to_hz(note),duration,volume,attack=attack,decay=decay,sustain=sustain,release=release,transition=transition,waveform=waveform,channel=channel);await asyncio.sleep_ms(duration)
-	def noteSync(self,note=60,duration=500,volume=100,*,attack=0,decay=0,sustain=100,release=0,transition=10,waveform=sound.WAVEFORM_SINE,channel=sound.DEFAULT):sound.beep(midi_to_hz(note),duration,volume,attack=attack,decay=decay,sustain=sustain,release=release,transition=transition,waveform=waveform,channel=channel)
-	def stop(self):sound.beep(0,0,0)
+    async def beep(self,frequency=440,duration=500,volume=100,*,attack=0,decay=0,sustain=100,release=0,transition=10,waveform=sound.WAVEFORM_SINE,channel=sound.DEFAULT):sound.beep(frequency,duration,volume,attack=attack,decay=decay,sustain=sustain,release=release,transition=transition,waveform=waveform,channel=channel);await asyncio.sleep_ms(duration)
+    async def note(self,note=60,duration=500,volume=100,*,attack=0,decay=0,sustain=100,release=0,transition=10,waveform=sound.WAVEFORM_SINE,channel=sound.DEFAULT):sound.beep(midi_to_hz(note),duration,volume,attack=attack,decay=decay,sustain=sustain,release=release,transition=transition,waveform=waveform,channel=channel);await asyncio.sleep_ms(duration)
+    def noteSync(self,note=60,duration=500,volume=100,*,attack=0,decay=0,sustain=100,release=0,transition=10,waveform=sound.WAVEFORM_SINE,channel=sound.DEFAULT):sound.beep(midi_to_hz(note),duration,volume,attack=attack,decay=decay,sustain=sustain,release=release,transition=transition,waveform=waveform,channel=channel)
+    def stop(self):sound.beep(0,0,0)
 _sound=sound_class()
 async def wait_for_motor(port,*,extra=0,skip=False):
-	if skip:return
-	if extra>0:await asyncio.sleep_ms(extra)
-	while motor.get_duty_cycle(port)==0:await asyncio.sleep_ms(0)
-	while not motor.get_duty_cycle(port)==0:await asyncio.sleep_ms(0)
+    if skip:return
+    if extra>0:await asyncio.sleep_ms(extra)
+    while motor.get_duty_cycle(port)==0:await asyncio.sleep_ms(0)
+    while not motor.get_duty_cycle(port)==0:await asyncio.sleep_ms(0)
 class motor_class:
-	def hold(self,choosen_stop,port):
-		if choosen_stop==motor.HOLD:motor.stop(port,stop=motor.HOLD)
-	def filter_hold(self,choosen_stop):return choosen_stop if choosen_stop!=motor.HOLD else motor.BRAKE
-	async def run_for_time(self,port,duration,velocity,*,stop=motor.BRAKE,acceleration=5000,deceleration=5000):motor.stop(port);motor.run_for_time(port,duration,velocity,stop=self.filter_hold(stop),acceleration=acceleration,deceleration=deceleration);await wait_for_motor(port,extra=20);self.hold(stop,port)
-	async def run_for_degrees(self,port,degrees,velocity,*,stop=motor.SMART_BRAKE,acceleration=5000,deceleration=5000):motor.stop(port);motor.run_for_degrees(port,degrees,velocity,stop=self.filter_hold(stop),acceleration=acceleration,deceleration=deceleration);await wait_for_motor(port,extra=20);self.hold(stop,port)
-	async def run_to_absolute_position(self,port,position,velocity,*,direction,stop=motor.SMART_BRAKE,acceleration=5000,deceleration=5000):motor.stop(port);motor.run_to_absolute_position(port,position,velocity,direction=direction,stop=self.filter_hold(stop),acceleration=acceleration,deceleration=deceleration);await wait_for_motor(port,skip=motor.absolute_position(port)==position,extra=20);self.hold(stop,port)
-	async def run_to_relative_position(self,port,position,velocity,*,stop=motor.SMART_BRAKE,acceleration=5000,deceleration=5000):motor.stop(port);motor.run_to_relative_position(port,position,velocity,stop=self.filter_hold(stop),acceleration=acceleration,deceleration=deceleration);await wait_for_motor(port,skip=motor.relative_position(port)==position,extra=20);self.hold(stop,port)
-	def stop(self,port,*,stop=motor.BRAKE):motor.stop(port,stop=stop)
+    def hold(self,choosen_stop,port):
+        if choosen_stop==motor.HOLD:motor.stop(port,stop=motor.HOLD)
+    def filter_hold(self,choosen_stop):return choosen_stop if choosen_stop!=motor.HOLD else motor.BRAKE
+    async def run_for_time(self,port,duration,velocity,*,stop=motor.BRAKE,acceleration=5000,deceleration=5000):motor.stop(port);motor.run_for_time(port,duration,velocity,stop=self.filter_hold(stop),acceleration=acceleration,deceleration=deceleration);await wait_for_motor(port,extra=20);self.hold(stop,port)
+    async def run_for_degrees(self,port,degrees,velocity,*,stop=motor.SMART_BRAKE,acceleration=5000,deceleration=5000):motor.stop(port);motor.run_for_degrees(port,degrees,velocity,stop=self.filter_hold(stop),acceleration=acceleration,deceleration=deceleration);await wait_for_motor(port,extra=20);self.hold(stop,port)
+    async def run_to_absolute_position(self,port,position,velocity,*,direction,stop=motor.SMART_BRAKE,acceleration=5000,deceleration=5000):motor.stop(port);motor.run_to_absolute_position(port,position,velocity,direction=direction,stop=self.filter_hold(stop),acceleration=acceleration,deceleration=deceleration);await wait_for_motor(port,skip=motor.absolute_position(port)==position,extra=20);self.hold(stop,port)
+    async def run_to_relative_position(self,port,position,velocity,*,stop=motor.SMART_BRAKE,acceleration=5000,deceleration=5000):motor.stop(port);motor.run_to_relative_position(port,position,velocity,stop=self.filter_hold(stop),acceleration=acceleration,deceleration=deceleration);await wait_for_motor(port,skip=motor.relative_position(port)==position,extra=20);self.hold(stop,port)
+    def stop(self,port,*,stop=motor.BRAKE):motor.stop(port,stop=stop)
 _motor=motor_class()
 class motor_pair_class:
-	def __init__(self):self.pairs=[[0,0]]*3;self.cm_per_360_deg=0;self.inch_per_360_deg=0
-	def hold(self,choosen_stop,pair):
-		if choosen_stop==motor.HOLD:motor_pair.stop(pair,stop=motor.HOLD)
-	def filter_hold(self,choosen_stop):return choosen_stop if choosen_stop!=motor.HOLD else motor.BRAKE
-	def pair(self,pair,left_motor,right_motor):motor_pair.pair(pair,left_motor,right_motor);self.pairs[pair]=[left_motor,right_motor]
-	async def move_for_degrees(self,pair,degrees,steering,*,velocity=180,stop=motor.BRAKE,acceleration=2000,deceleration=2000):motor_pair.stop(pair);motor_pair.move_for_degrees(pair,degrees,steering,velocity=velocity,stop=self.filter_hold(stop),acceleration=acceleration,deceleration=deceleration);await wait_for_motor(self.pairs[pair][0],extra=5);self.hold(stop,pair)
-	async def move_for_time(self,pair,duration,steering,*,velocity=180,stop=motor.BRAKE,acceleration=2000,deceleration=2000):motor_pair.stop(pair);motor_pair.move_for_time(pair,duration,steering,velocity=velocity,stop=self.filter_hold(stop),acceleration=acceleration,deceleration=deceleration);await wait_for_motor(self.pairs[pair][0],extra=5);self.hold(stop,pair)
-	async def move_tank_for_degrees(self,pair,degrees,left_velocity,right_velocity,*,stop=motor.BRAKE,acceleration=2000,deceleration=2000):motor_pair.stop(pair);motor_pair.move_tank_for_degrees(pair,degrees,left_velocity,right_velocity,stop=self.filter_hold(stop),acceleration=acceleration,deceleration=deceleration);await wait_for_motor(self.pairs[pair][0],extra=5);self.hold(stop,pair)
-	async def move_tank_for_time(self,pair,left_velocity,right_velocity,duration,*,stop=motor.BRAKE,acceleration=2000,deceleration=2000):motor_pair.stop(pair);motor_pair.move_tank_for_time(pair,left_velocity,right_velocity,duration,stop=self.filter_hold(stop),acceleration=acceleration,deceleration=deceleration);await wait_for_motor(self.pairs[pair][0],extra=5);self.hold(stop,pair)
-	def cm_to_degrees(self,cm):return round(cm/self.cm_per_360_deg*360)
-	def inch_to_degrees(self,inch):return round(inch/self.inch_per_360_deg*360)
-	def set_cm_per_360_deg(self,cm):self.cm_per_360_deg=cm
-	def set_inch_per_360_deg(self,inch):self.inch_per_360_deg=inch
+    def __init__(self):self.pairs=[[0,0]]*3;self.cm_per_360_deg=0;self.inch_per_360_deg=0
+    def hold(self,choosen_stop,pair):
+        if choosen_stop==motor.HOLD:motor_pair.stop(pair,stop=motor.HOLD)
+    def filter_hold(self,choosen_stop):return choosen_stop if choosen_stop!=motor.HOLD else motor.BRAKE
+    def pair(self,pair,left_motor,right_motor):motor_pair.pair(pair,left_motor,right_motor);self.pairs[pair]=[left_motor,right_motor]
+    async def move_for_degrees(self,pair,degrees,steering,*,velocity=180,stop=motor.BRAKE,acceleration=2000,deceleration=2000):motor_pair.stop(pair);motor_pair.move_for_degrees(pair,degrees,steering,velocity=velocity,stop=self.filter_hold(stop),acceleration=acceleration,deceleration=deceleration);await wait_for_motor(self.pairs[pair][0],extra=5);self.hold(stop,pair)
+    async def move_for_time(self,pair,duration,steering,*,velocity=180,stop=motor.BRAKE,acceleration=2000,deceleration=2000):motor_pair.stop(pair);motor_pair.move_for_time(pair,duration,steering,velocity=velocity,stop=self.filter_hold(stop),acceleration=acceleration,deceleration=deceleration);await wait_for_motor(self.pairs[pair][0],extra=5);self.hold(stop,pair)
+    async def move_tank_for_degrees(self,pair,degrees,left_velocity,right_velocity,*,stop=motor.BRAKE,acceleration=2000,deceleration=2000):motor_pair.stop(pair);motor_pair.move_tank_for_degrees(pair,degrees,left_velocity,right_velocity,stop=self.filter_hold(stop),acceleration=acceleration,deceleration=deceleration);await wait_for_motor(self.pairs[pair][0],extra=5);self.hold(stop,pair)
+    async def move_tank_for_time(self,pair,left_velocity,right_velocity,duration,*,stop=motor.BRAKE,acceleration=2000,deceleration=2000):motor_pair.stop(pair);motor_pair.move_tank_for_time(pair,left_velocity,right_velocity,duration,stop=self.filter_hold(stop),acceleration=acceleration,deceleration=deceleration);await wait_for_motor(self.pairs[pair][0],extra=5);self.hold(stop,pair)
+    def cm_to_degrees(self,cm):return round(cm/self.cm_per_360_deg*360)
+    def inch_to_degrees(self,inch):return round(inch/self.inch_per_360_deg*360)
+    def set_cm_per_360_deg(self,cm):self.cm_per_360_deg=cm
+    def set_inch_per_360_deg(self,inch):self.inch_per_360_deg=inch
 _motor_pair=motor_pair_class()
 class color_matrix_class:
-	async def show(self,port,pixels,duration):color_matrix.show(port,pixels);await asyncio.sleep_ms(duration);color_matrix.clear(port)
-	def rotate_right(self,grid):face=[grid[i:i+3]for i in range(0,9,3)];rotated_face=[list(row)for row in zip(*face[::-1])];return[item for row in rotated_face for item in row]
-	def rotate_left(self,grid):face=[grid[i:i+3]for i in range(0,9,3)];rotated_face=[list(row)for row in list(zip(*face))[::-1]];return[item for row in rotated_face for item in row]
-	def scale_pixels(self,pixels,intensity):return[(x,round(y*intensity/100))for(x,y)in pixels]
+    async def show(self,port,pixels,duration):color_matrix.show(port,pixels);await asyncio.sleep_ms(duration);color_matrix.clear(port)
+    def rotate_right(self,grid):face=[grid[i:i+3]for i in range(0,9,3)];rotated_face=[list(row)for row in zip(*face[::-1])];return[item for row in rotated_face for item in row]
+    def rotate_left(self,grid):face=[grid[i:i+3]for i in range(0,9,3)];rotated_face=[list(row)for row in list(zip(*face))[::-1]];return[item for row in rotated_face for item in row]
+    def scale_pixels(self,pixels,intensity):return[(x,round(y*intensity/100))for(x,y)in pixels]
 _color_matrix=color_matrix_class()
 class light_matrix_class:
-	async def wait_for_light_matrix(self):
-		def checkIfEmpty():
-			for x in range(5):
-				for y in range(5):
-					if light_matrix.get_pixel(x,y)!=0:return False
-			return True
-		while not checkIfEmpty():await asyncio.sleep_ms(0)
-		while checkIfEmpty():await asyncio.sleep_ms(0)
-		while not checkIfEmpty():await asyncio.sleep_ms(0)
-	async def write(self,text,intensity=100,time_per_character=500):light_matrix.write(text,intensity,time_per_character);await self.wait_for_light_matrix()
-	async def show(self,pixels,duration):light_matrix.show(pixels);await asyncio.sleep_ms(duration);light_matrix.clear()
-	async def show_image(self,image,duration):light_matrix.show_image(image);await asyncio.sleep_ms(duration);light_matrix.clear()
-	def rotate_right(self):current_orientation=light_matrix.get_orientation();light_matrix.set_orientation(current_orientation+1)if current_orientation<3 else light_matrix.set_orientation(0)
-	def rotate_left(self):current_orientation=light_matrix.get_orientation();light_matrix.set_orientation(current_orientation+-1)if current_orientation>0 else light_matrix.set_orientation(3)
-	def prepare_image(self,pixels):return[(pixel+1)*10 if pixel!=0 else 0 for pixel in sum(image,[])]
-	def scale_pixels(self,pixels,intensity):return[round(pixel*intensity/100)for pixel in pixels]
+    async def wait_for_light_matrix(self):
+        def checkIfEmpty():
+            for x in range(5):
+                for y in range(5):
+                    if light_matrix.get_pixel(x,y)!=0:return False
+            return True
+        while not checkIfEmpty():await asyncio.sleep_ms(0)
+        while checkIfEmpty():await asyncio.sleep_ms(0)
+        while not checkIfEmpty():await asyncio.sleep_ms(0)
+    async def write(self,text,intensity=100,time_per_character=500):light_matrix.write(text,intensity,time_per_character);await self.wait_for_light_matrix()
+    async def show(self,pixels,duration):light_matrix.show(pixels);await asyncio.sleep_ms(duration);light_matrix.clear()
+    async def show_image(self,image,duration):light_matrix.show_image(image);await asyncio.sleep_ms(duration);light_matrix.clear()
+    def rotate_right(self):current_orientation=light_matrix.get_orientation();light_matrix.set_orientation(current_orientation+1)if current_orientation<3 else light_matrix.set_orientation(0)
+    def rotate_left(self):current_orientation=light_matrix.get_orientation();light_matrix.set_orientation(current_orientation+-1)if current_orientation>0 else light_matrix.set_orientation(3)
+    def prepare_image(self,pixels):return[(pixel+1)*10 if pixel!=0 else 0 for pixel in sum(image,[])]
+    def scale_pixels(self,pixels,intensity):return[round(pixel*intensity/100)for pixel in pixels]
 _light_matrix=light_matrix_class()
 class waitClass:
-	async def to_be(self,sensor,port,expected_value):
-		while sensor(port)==expected_value:await asyncio.sleep_ms(0)
-		while not sensor(port)==expected_value:await asyncio.sleep_ms(0)
-	async def to_be_more(self,sensor,port,expected_value):
-		while sensor(port)>expected_value:await asyncio.sleep_ms(0)
-		while not sensor(port)>expected_value:await asyncio.sleep_ms(0)
-	async def to_be_less(self,sensor,port,expected_value):
-		while sensor(port)<expected_value:await asyncio.sleep_ms(0)
-		while not sensor(port)<expected_value:await asyncio.sleep_ms(0)
-	async def to_be_less_and_valid(self,sensor,port,expected_value):
-		while sensor(port)<expected_value or sensor(port)==-1:await asyncio.sleep_ms(0)
-		while not sensor(port)<expected_value or sensor(port)==-1:await asyncio.sleep_ms(0)
-	async def to_not_be(self,sensor,port,expected_value):
-		while sensor(port)==expected_value:await asyncio.sleep_ms(0)
-	async def to_not_be_and_valid(self,sensor,port,expected_value):
-		while sensor(port)==expected_value or sensor(port)==-1:await asyncio.sleep_ms(0)
+    async def to_be(self,sensor,port,expected_value):
+        while sensor(port)==expected_value:await asyncio.sleep_ms(0)
+        while not sensor(port)==expected_value:await asyncio.sleep_ms(0)
+    async def to_be_more(self,sensor,port,expected_value):
+        while sensor(port)>expected_value:await asyncio.sleep_ms(0)
+        while not sensor(port)>expected_value:await asyncio.sleep_ms(0)
+    async def to_be_less(self,sensor,port,expected_value):
+        while sensor(port)<expected_value:await asyncio.sleep_ms(0)
+        while not sensor(port)<expected_value:await asyncio.sleep_ms(0)
+    async def to_be_less_and_valid(self,sensor,port,expected_value):
+        while sensor(port)<expected_value or sensor(port)==-1:await asyncio.sleep_ms(0)
+        while not sensor(port)<expected_value or sensor(port)==-1:await asyncio.sleep_ms(0)
+    async def to_not_be(self,sensor,port,expected_value):
+        while sensor(port)==expected_value:await asyncio.sleep_ms(0)
+    async def to_not_be_and_valid(self,sensor,port,expected_value):
+        while sensor(port)==expected_value or sensor(port)==-1:await asyncio.sleep_ms(0)
 wait=waitClass()
 class eventsClass:
-	def __init__(self):self.saved_values=[None]*6
-	async def when_program_starts(self,task_id,coroutine):loop.add_task(task_id,coroutine(task_id))
-	async def when_custom_sensor(self,task_id,coroutine,sensor):
-		while True:await sensor();loop.add_task(task_id,coroutine(task_id))
-	async def when_sensor_is(self,task_id,coroutine,sensor,_port,value):
-		while True:await wait.to_be(sensor,_port,value);loop.add_task(task_id,coroutine(task_id))
-	async def when_sensor_is_more(self,task_id,coroutine,sensor,_port,value):
-		while True:await wait.to_be_more(sensor,_port,value);loop.add_task(task_id,coroutine(task_id))
-	async def when_sensor_is_less(self,task_id,coroutine,sensor,_port,value):
-		while True:await wait.to_be_less(sensor,_port,value);loop.add_task(task_id,coroutine(task_id))
-	async def when_sensor_is_less_and_valid(self,task_id,coroutine,sensor,_port,value):
-		while True:await wait.to_be_less(sensor,_port,value);loop.add_task(task_id,coroutine(task_id))
-	async def when_sensor_changed(self,task_id,coroutine,sensor,_port):
-		if self.saved_values[_port]==None:self.saved_values[_port]=sensor(_port)
-		while True:await wait.to_not_be(sensor,_port,self.saved_values[_port]);self.saved_values[_port]=sensor(_port);loop.add_task(task_id,coroutine(task_id))
-	async def when_sensor_changed_and_valid(self,task_id,coroutine,sensor,_port):
-		if self.saved_values[_port]==None:self.saved_values[_port]=sensor(_port)
-		while True:await wait.to_not_be_and_valid(sensor,_port,self.saved_values[_port]);self.saved_values[_port]=sensor(_port);loop.add_task(task_id,coroutine(task_id))
+    def __init__(self):self.saved_values=[None]*6
+    async def when_program_starts(self,task_id,coroutine):loop.add_task(task_id,coroutine(task_id))
+    async def when_custom_sensor(self,task_id,coroutine,sensor):
+        while True:await sensor();loop.add_task(task_id,coroutine(task_id))
+    async def when_sensor_is(self,task_id,coroutine,sensor,_port,value):
+        while True:await wait.to_be(sensor,_port,value);loop.add_task(task_id,coroutine(task_id))
+    async def when_sensor_is_more(self,task_id,coroutine,sensor,_port,value):
+        while True:await wait.to_be_more(sensor,_port,value);loop.add_task(task_id,coroutine(task_id))
+    async def when_sensor_is_less(self,task_id,coroutine,sensor,_port,value):
+        while True:await wait.to_be_less(sensor,_port,value);loop.add_task(task_id,coroutine(task_id))
+    async def when_sensor_is_less_and_valid(self,task_id,coroutine,sensor,_port,value):
+        while True:await wait.to_be_less(sensor,_port,value);loop.add_task(task_id,coroutine(task_id))
+    async def when_sensor_changed(self,task_id,coroutine,sensor,_port):
+        if self.saved_values[_port]==None:self.saved_values[_port]=sensor(_port)
+        while True:await wait.to_not_be(sensor,_port,self.saved_values[_port]);self.saved_values[_port]=sensor(_port);loop.add_task(task_id,coroutine(task_id))
+    async def when_sensor_changed_and_valid(self,task_id,coroutine,sensor,_port):
+        if self.saved_values[_port]==None:self.saved_values[_port]=sensor(_port)
+        while True:await wait.to_not_be_and_valid(sensor,_port,self.saved_values[_port]);self.saved_values[_port]=sensor(_port);loop.add_task(task_id,coroutine(task_id))
 events=eventsClass()
 class distanceSensorClass:
-	def distance_cm(self,port):distance=distance_sensor.distance(port);return round(distance/10)if distance!=-1 else-1
-	def distance_inch(self,port):distance=distance_sensor.distance(port);return round(distance*3.93701)if distance!=-1 else-1
-	def distance_percentage(self,port):distance=distance_sensor.distance(port);return round(distance/2)if distance!=-1 else-1
+    def distance_cm(self,port):distance=distance_sensor.distance(port);return round(distance/10)if distance!=-1 else-1
+    def distance_inch(self,port):distance=distance_sensor.distance(port);return round(distance*3.93701)if distance!=-1 else-1
+    def distance_percentage(self,port):distance=distance_sensor.distance(port);return round(distance/2)if distance!=-1 else-1
 _distanceSensor=distanceSensorClass()
 class motionSensorClass:
-	def tilt_angles(self,index):return motion_sensor.tilt_angles()[index]
-	def tilted(self,_notUsed):tilts=motion_sensor.tilt_angles();return tilts[1]<-130 or tilts[1]>130 or tilts[2]<-130 or tilts[2]>130
-	def upside_down(self,_notUsed):tilts=motion_sensor.tilt_angles();return(tilts[2]>1350 or tilts[2]<-1350)and(tilts[1]>-450 and tilts[1]<450)
-	def gesture(self,_notUsed):return motion_sensor.gesture()
-	def stable(self,_notUsed):return motion_sensor.stable()
+    def tilt_angles(self,index):return motion_sensor.tilt_angles()[index]
+    def tilted(self,_notUsed):tilts=motion_sensor.tilt_angles();return tilts[1]<-130 or tilts[1]>130 or tilts[2]<-130 or tilts[2]>130
+    def upside_down(self,_notUsed):tilts=motion_sensor.tilt_angles();return(tilts[2]>1350 or tilts[2]<-1350)and(tilts[1]>-450 and tilts[1]<450)
+    def gesture(self,_notUsed):return motion_sensor.gesture()
+    def stable(self,_notUsed):return motion_sensor.stable()
 _motion_sensor=motionSensorClass()
 
 #endregion
@@ -156,7 +156,7 @@ _motion_sensor=motionSensorClass()
 
 # Global variables for robot configuration
 
-WHEEL_CIRCUMFERENCE_CM = 9.0# Wheel circumference in centimeters
+WHEEL_CIRCUMFERENCE_CM = 17.6# Wheel circumference in centimeters
 MOTOR_PAIR_LEFT = port.A    # Left motor port
 MOTOR_PAIR_RIGHT = port.E    # Right motor port
 MOTOR_PAIR_ID = 0            # Motor pair identifier
@@ -235,7 +235,7 @@ async def turn_right(degrees=90, *, speed=DEFAULT_TURN_SPEED, delay_after=DEFAUL
 
     # Turn right using steering (steering value 100 = turn in place to the right)
     rotations = 0.5
-    await _motor_pair.move_for_degrees(MOTOR_PAIR_ID,  (int)(rotations * 360), 100, velocity=speed)
+    await _motor_pair.move_for_degrees(MOTOR_PAIR_ID,(int)(rotations * 360), 100, velocity=speed)
     if delay_after > 0:
         await asyncio.sleep_ms(delay_after)
 
@@ -253,7 +253,7 @@ async def turn_left(degrees=90, *, speed=DEFAULT_TURN_SPEED, delay_after=DEFAULT
 
     # Turn left using steering (steering value -100 = turn in place to the left)
     rotations = 0.5
-    await _motor_pair.move_for_degrees(MOTOR_PAIR_ID,  (int)(rotations * 360), -100, velocity=speed)
+    await _motor_pair.move_for_degrees(MOTOR_PAIR_ID,(int)(rotations * 360), -100, velocity=speed)
     if delay_after > 0:
         await asyncio.sleep_ms(delay_after)
 
@@ -279,7 +279,7 @@ async def move_right_motor(degrees, *, speed=DEFAULT_ARM_SPEED, delay_after=DEFA
     """
     await _motor.run_for_degrees(RIGHT_MOTOR, degrees, speed)
     if delay_after > 0:
-        await asyncio.sleep_ms(delay_after)    
+        await asyncio.sleep_ms(delay_after)
 
 async def move_left_motor_up_or_down(degrees, *, speed=DEFAULT_ARM_SPEED, delay_after=DEFAULT_MOVEMENT_DELAY):
     """
@@ -303,7 +303,7 @@ async def move_right_motor_up_or_down(degrees, *, speed=DEFAULT_ARM_SPEED, delay
     """
     await _motor.run_for_degrees(RIGHT_MOTOR, degrees, speed)
     if delay_after > 0:
-        await asyncio.sleep_ms(delay_after)      
+        await asyncio.sleep_ms(delay_after)
 
 async def move_left_motor_sideways(degrees, *, speed=DEFAULT_ARM_SPEED, delay_after=DEFAULT_MOVEMENT_DELAY):
     """
@@ -315,9 +315,9 @@ async def move_left_motor_sideways(degrees, *, speed=DEFAULT_ARM_SPEED, delay_af
     """
     await _motor.run_for_degrees(LEFT_MOTOR, degrees, speed)
     if delay_after > 0:
-        await asyncio.sleep_ms(delay_after)                  
+        await asyncio.sleep_ms(delay_after)
 
-#endregion 
+#endregion
 
 #region "Missions in this run - sync with unearthed/mission folder"
 """#####################"""
@@ -327,7 +327,7 @@ async def move_left_motor_sideways(degrees, *, speed=DEFAULT_ARM_SPEED, delay_af
 async def mission_15_remove_the_earth_above(task_id):
 
     """
-    Mission: Drop the front arm and remove the soil layer
+    Mission: Move robot forward 10 cm using helper function
     """
     def when_cancelled():
         # Stop all motors when cancelled
@@ -335,17 +335,77 @@ async def mission_15_remove_the_earth_above(task_id):
         motor.stop(MOTOR_PAIR_LEFT)
         motor.stop(MOTOR_PAIR_RIGHT)
     try:
-        await move_forward(15)
-        # Drop the arm using the right motor and make it align with the floor
-        await move_right_motor(120)
-        await move_backward(20, speed=(int)(DEFAULT_MOVEMENT_SPEED/2))
-        await move_right_motor(-120)
-		
+        MISSION_REACH_PULL_BACK = 45
+        MISSION_PULL_UP_AND_DOWN_ANGLE = 240
+        # Starting position is the first dark line. 
+        # Raise both motors up as friction can be reduced.
+        await move_right_motor(-MISSION_PULL_UP_AND_DOWN_ANGLE)
+        await move_left_motor(MISSION_PULL_UP_AND_DOWN_ANGLE)
+        # reach the sand pile.
+        await move_forward(MISSION_REACH_PULL_BACK)
+        # Drop the arm on the sand pile
+        await move_right_motor(MISSION_PULL_UP_AND_DOWN_ANGLE)
+        # pull the sand pile away and it crashes but move slowly
+        await move_backward(MISSION_REACH_PULL_BACK, speed=(int)(DEFAULT_MOVEMENT_SPEED/2))
+
+        loop.remove_task(task_id)
+    except asyncio.CancelledError:
+
+        when_cancelled()
+    
+async def mission_N_raise_the_ship(task_id):
+
+    """
+    Mission: Move robot forward and push the red bar using the front
+    """
+    def when_cancelled():
+        # Stop all motors when cancelled
+        motor_pair.stop(MOTOR_PAIR_ID)
+        motor.stop(MOTOR_PAIR_LEFT)
+        motor.stop(MOTOR_PAIR_RIGHT)
+    try:
+        # Move forward till you hit the red plank 
+        MOVE_FORWARD_FOR_RED_PLANK = 70
+        MISSION_PULL_UP_AND_DOWN_ANGLE = 240
+        await move_right_motor(-MISSION_PULL_UP_AND_DOWN_ANGLE)
+        # await move_left_motor(MISSION_PULL_UP_AND_DOWN_ANGLE)
+        await move_forward(MOVE_FORWARD_FOR_RED_PLANK)
+        # await move_right_motor(MISSION_PULL_UP_AND_DOWN_ANGLE) 
+        await move_backward(12)
+
         loop.remove_task(task_id)
     except asyncio.CancelledError:
 
         when_cancelled()
 
+async def mission_N_raise_payload_push_it_multiple_times(task_id):
+
+    """
+    Mission: Move arm motor B 90 degrees to the left to drop the front arm
+    """
+    def when_cancelled():
+        # Stop arm motor when cancelled
+        motor.stop(LEFT_MOTOR)
+    try:
+        await asyncio.sleep_ms(2000)
+        DROP_LONG_ARM_BY_DEGREES = 125
+        await move_right_motor(DROP_LONG_ARM_BY_DEGREES) # drop it down
+        await asyncio.sleep_ms(2000)
+        for i in range(6):
+            motion_sensor.reset_yaw(0)
+            await move_forward(10, speed= (int)(DEFAULT_MOVEMENT_SPEED / 2))
+            await asyncio.sleep_ms(200)
+            await move_backward(10, speed= (int)(DEFAULT_MOVEMENT_SPEED / 2))
+            await asyncio.sleep_ms(200)
+        # remove the arm
+        await move_right_motor(-DROP_LONG_ARM_BY_DEGREES)
+        # return to base
+
+        await move_backward(10)
+        loop.remove_task(task_id)
+
+    except asyncio.CancelledError:
+        when_cancelled()
 #endregion
 
 #region "Multiple Mission Runs along with motion between the missions to bring the bot back home"
@@ -353,7 +413,7 @@ async def mission_15_remove_the_earth_above(task_id):
 """#####################"""
 """# RUN FUNCTIONS    #"""
 """#####################"""
-async def run2_m15(task_id):
+async def run1_m1_m2_m3(task_id):
     """
     Simple run: Execute forward movement, arm drop, and back and forth movement using mission functions
     """
@@ -365,8 +425,29 @@ async def run2_m15(task_id):
         motor.stop(LEFT_MOTOR)
     try:
         # Mission 1: Move forward 10 cm using mission function
+        
         await mission_15_remove_the_earth_above('mission_15')
         
+        await asyncio.sleep_ms(5000)
+        
+        await mission_N_raise_the_ship("Raise_ship_mission")
+
+        await mission_N_raise_payload_push_it_multiple_times("Raise Payload")
+
+        # await move_right_motor(-240)
+
+        # await turn_left(90, speed=(int)(DEFAULT_MOVEMENT_SPEED))
+        # await turn_right(30, speed=(int)(DEFAULT_MOVEMENT_SPEED))
+        # await move_forward(40)
+
+        # await move_left_motor(-240)
+
+        # await move_backward(5)
+
+        # await turn_right(30, speed=(int)(DEFAULT_MOVEMENT_SPEED))
+
+        # await move_forward(20)
+
         loop.remove_task(task_id)
     except asyncio.CancelledError:
         when_cancelled()
@@ -380,7 +461,7 @@ async def run2_m15(task_id):
 
 async def mainLoop():
     # Set up the simple run with both missions
-    loop.add_main_task("main_task", events.when_program_starts('run_2', run2_m15))
+    loop.add_main_task("main_task", events.when_program_starts('simple_run', run1_m1_m2_m3))
     await loop.run_all_tasks()
 
 # Run the simple run
